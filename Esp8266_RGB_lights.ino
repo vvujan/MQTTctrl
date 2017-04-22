@@ -62,38 +62,25 @@ String macToStr(const uint8_t* mac)
   return result;
 }
 
-void setup() {
-  Serial.begin(115200);
-  pixels.begin(); // This initializes the NeoPixel library.
-  for (int i=0; i<NUMPIXELS; i++)
-    pixels.setPixelColor(i, pixels.Color(0,50,0));
-  delay(10);
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid); 
-  WiFi.begin(ssid, password);
- 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("arduinoClient")) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("outTopic","hello world");
+      // ... and resubscribe
+      client.subscribe("inTopic");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
   }
-  
-  Serial.println("");
-  Serial.println("WiFi connected"); 
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
- 
-//  connection to broker script.
-  if (client.connect("heartrtrc1")) {
-    client.publish("/haptic/IO","Lights is up"); //MQTT publish to the topic "/haptic/IO"and msg "Haptic is up"
-    client.subscribe(topic);
-  }  
-}
-
-void loop() {
-  client.loop(); 
-  selectMode(msgData);
 }
 
 void selectMode(String message){
@@ -168,4 +155,43 @@ uint32_t Wheel(byte WheelPos) {
   }
   WheelPos -= 170;
   return pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pixels.begin(); // This initializes the NeoPixel library.
+  for (int i=0; i<NUMPIXELS; i++)
+    pixels.setPixelColor(i, pixels.Color(0,50,0));
+  delay(10);
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid); 
+  WiFi.begin(ssid, password);
+ 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println("");
+  Serial.println("WiFi connected"); 
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+ 
+//  connection to broker script.
+  if (client.connect("heartrtrc1")) {
+    client.publish("/haptic/IO","Lights is up"); //MQTT publish to the topic "/haptic/IO"and msg "Haptic is up"
+    client.subscribe(topic);
+  }  
+}
+
+void loop() {
+  {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop(); 
+  selectMode(msgData);
+  }
 }
