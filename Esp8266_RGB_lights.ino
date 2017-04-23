@@ -1,8 +1,8 @@
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
- #include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
-  #include <avr/power.h>
+#include <avr/power.h>
 #endif
 
 #define PIN            5
@@ -27,7 +27,8 @@ int green = 0;
 int blue = 0;
 int delayInput;
 int brigthness;
-String message;
+String message,lastMessage;
+
 
 WiFiClient wifiClient;
 
@@ -83,19 +84,21 @@ void reconnect() {
   }
 }
 
-void selectMode(String message){
+String selectMode(String message){
   method = message.substring(0,message.indexOf(";"));
 
   if(method=="static")
     colorPicker(message);
   else if(method == "dynamic")
     rainbow(message);
+  return method;
 }
 
 
 void colorPicker(String message){
-  Serial.println(message);
- 
+  if(lastMessage!=message)
+    lastMessage=message;
+  
   method = message.substring(0,message.indexOf(";"));
   stringPosition = message.indexOf(";");
   message.remove(0,stringPosition+1); 
@@ -117,11 +120,14 @@ void colorPicker(String message){
     pixels.setPixelColor(i, pixels.Color(red,green,blue));
   }
   pixels.show();
+  
 }
 
 void rainbow(String message) {
   uint16_t i, j;
-
+  if(lastMessage!=message)
+    lastMessage=message;
+  
   method = message.substring(0,message.indexOf(";"));
   stringPosition = message.indexOf(";");
   message.remove(0,stringPosition+1); 
@@ -134,9 +140,12 @@ void rainbow(String message) {
   stringPosition = message.indexOf(";");
   message.remove(0,stringPosition+1);
 
+  pixels.setBrightness(brigthness);
   for(j=0; j<256; j++) {
     for(i=0; i<NUMPIXELS; i++) {
       pixels.setPixelColor(i, Wheel((i+j) & 255));
+      if(!client.connected())
+        reconnect();
       selectMode(message);
     }
     pixels.show();
@@ -187,11 +196,15 @@ void setup() {
 }
 
 void loop() {
-  {
-  if (!client.connected()) {
-    reconnect();
+  if(client.connected()){
+    client.loop();
+    Serial.println(msgData); 
+    selectMode(msgData);
+    if(message=="\0")
+      selectMode(lastMessage);
   }
-  client.loop(); 
-  selectMode(msgData);
+  else{
+    reconnect();
+    
   }
 }
