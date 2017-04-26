@@ -27,7 +27,9 @@ int green = 0;
 int blue = 0;
 int delayInput;
 int brigthness;
-String message,lastMessage;
+String message="\0";
+String lastMessage= "\0";
+bool check=false;
 
 
 WiFiClient wifiClient;
@@ -87,17 +89,25 @@ void reconnect() {
 String selectMode(String message){
   method = message.substring(0,message.indexOf(";"));
 
-  if(method=="static")
+  if(method=="static"){
     colorPicker(message);
-  else if(method == "dynamic")
+  }
+  else if(method == "dynamic"){
     rainbow(message);
+  }
   return method;
 }
 
 
 void colorPicker(String message){
-  if(lastMessage!=message)
+ 
+  if(lastMessage!=message){
     lastMessage=message;
+    check=true;
+  }
+    
+   Serial.println(lastMessage);
+   Serial.println(message);
   
   method = message.substring(0,message.indexOf(";"));
   stringPosition = message.indexOf(";");
@@ -125,8 +135,10 @@ void colorPicker(String message){
 
 void rainbow(String message) {
   uint16_t i, j;
-  if(lastMessage!=message)
+  if(lastMessage!=message){
     lastMessage=message;
+    check=false;
+  }
   
   method = message.substring(0,message.indexOf(";"));
   stringPosition = message.indexOf(";");
@@ -142,14 +154,17 @@ void rainbow(String message) {
 
   pixels.setBrightness(brigthness);
   for(j=0; j<256; j++) {
-    for(i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, Wheel((i+j) & 255));
-      if(!client.connected())
-        reconnect();
-      selectMode(message);
+    if(check==false){
+      for(i=0; i<NUMPIXELS; i++) {
+        pixels.setPixelColor(i, Wheel((i+j) & 255));
+      }
+      pixels.show();
+      delay(delayInput);
+      client.loop();
+      if(msgData != message){    
+        selectMode(msgData);
+      } 
     }
-    pixels.show();
-    delay(delayInput);
   }
 }
 
@@ -198,7 +213,8 @@ void setup() {
 void loop() {
   if(client.connected()){
     client.loop();
-    Serial.println(msgData); 
+    if(lastMessage !=  msgData)
+      Serial.println(msgData); 
     selectMode(msgData);
     if(message=="\0")
       selectMode(lastMessage);
